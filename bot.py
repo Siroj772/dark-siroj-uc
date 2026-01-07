@@ -3,7 +3,7 @@ from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKe
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 TOKEN = "8225625567:AAH7MDUwla9HjNfVbCvLPLT4yCvVqPW3np4"
-ADMIN_ID = 6058698891  # o'zingning Telegram ID
+ADMIN_ID = 1787954213 # o'zingning Telegram ID
 GROUP_ID = -1003618907297  # buyurtmalar tushadigan group ID
 KARTA = "5614 6846 0189 1797"
 ISM = "Sirojiddin S"
