@@ -4,7 +4,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 
 TOKEN = "8225625567:AAH7MDUwla9HjNfVbCvLPLT4yCvVqPW3np4"
 ADMIN_ID = 6058698891  # o'zingning Telegram ID
-GROUP_ID = -5217526899  # buyurtmalar tushadigan group ID
+GROUP_ID = -1003618907297  # buyurtmalar tushadigan group ID
 KARTA = "5614 6846 0189 1797"
 ISM = "Sirojiddin S"
 
