@@ -135,18 +135,43 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action, target_user_id = data.split("_")
     target_user_id = int(target_user_id)
 
+    # Agar user mavjud bo'lmasa ham davom etsin
+    order = user_data.get(target_user_id, {})
+
     if action == "done":
+        # Userga xabar
         await context.bot.send_message(
             chat_id=target_user_id,
-            text="✅ UC ishonchli va tez tushirildi! Rahmat, yana murojaat qiling."
+            text="✅ UC ishonchli va tez tushirildi! Rahmat, yana zakaz berishingiz mumkin.\n\n/start bosing."
         )
-        await query.edit_message_caption(caption=query.message.caption + "\n\n✔️ BAJARILDI")
+
+        # User holatini tozalaymiz
+        if target_user_id in user_data:
+            del user_data[target_user_id]
+
+        # Groupdagi xabarni yangilaymiz
+        await query.edit_message_caption(
+            caption=query.message.caption + "\n\n✔️ BAJARILDI",
+            reply_markup=None
+        )
+
     elif action == "fake":
+        # Userga xabar
         await context.bot.send_message(
             chat_id=target_user_id,
-            text="❌ Chekingiz soxtaga o‘xshaydi. Iltimos, to‘g‘ri chek yuboring."
+            text="❌ Chekingiz soxtaga o‘xshaydi. Iltimos, qayta to‘g‘ri chek yuboring."
         )
-        await query.edit_message_caption(caption=query.message.caption + "\n\n❌ SOXTA CHEK")
+
+        # Userni qayta chek bosqichiga qaytaramiz
+        user_data[target_user_id] = user_data.get(target_user_id, {})
+        user_data[target_user_id]["step"] = "payment"
+
+        # Groupdagi xabarni yangilaymiz
+        await query.edit_message_caption(
+            caption=query.message.caption + "\n\n❌ SOXTA CHEK",
+            reply_markup=None
+        )
+
 
     # Tugmalarni o‘chiramiz
     await query.edit_message_reply_markup(reply_markup=None)
