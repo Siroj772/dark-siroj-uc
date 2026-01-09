@@ -245,7 +245,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🆕 YANGI BUYURTMA\n\n"
             f"Xizmat: {order.get('service')}\n"
             f"Paket: {order.get('package')}\n"
-            f"ID: {order.get('player_id')}\n"
+            f"ID: `{order.get('player_id')}`\n"
             f"User: {update.message.from_user.full_name}\n"
             f"TG ID: {user_id}"
         )
