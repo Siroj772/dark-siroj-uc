@@ -1,23 +1,32 @@
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from telegram import (
+    Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton,
+    InputMediaPhoto
+)
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    CallbackQueryHandler, filters, ContextTypes
+)
 
 TOKEN = "8225625567:AAH7MDUwla9HjNfVbCvLPLT4yCvVqPW3np4"
-ADMIN_ID = 1787954213           # o'zingning Telegram ID
-GROUP_ID = -1003618907297    # buyurtmalar tushadigan group ID
+
+ADMIN_ID = 1787954213
+GROUP_ID = -1003618907297
+PROOF_CHANNEL_ID = -1002547753187
+
 KARTA = "8600 1234 5678 9012"
 ISM = "Sirojiddin S"
 
 user_data = {}
 support_sessions = {}
+last_receipts = {}
+awaiting_reviews = set()
 
-# =========================
-# ORQAGA TUGMASI
-# =========================
 BACK_BUTTON = [["⬅️ Orqaga"]]
 
 # =========================
 # MATNLAR
 # =========================
+
 UC_TEXT = """
 🔥 PUBG UC TARIFLAR 🔥
 
@@ -39,13 +48,9 @@ UC_TEXT = """
 """
 
 UC_PACKAGES = [
-    "60 UC", "120 UC",
-    "180 UC", "325 UC",
-    "660 UC", "840 UC",
-    "985 UC", "1800 UC",
-    "1920 UC", "3120 UC",
-    "3850 UC", "5650 UC",
-    "8100 UC"
+    "60 UC", "120 UC", "180 UC", "325 UC",
+    "660 UC", "840 UC", "985 UC", "1800 UC",
+    "1920 UC", "3120 UC", "3850 UC", "5650 UC", "8100 UC"
 ]
 
 PP_TEXT = """
@@ -65,12 +70,7 @@ PP BATTLE
 👇 Kerakli PP paketni tanlang:
 """
 
-PP_PACKAGES = [
-    "10K PP", "20K PP",
-    "30K PP", "40K PP",
-    "50K PP", "70K PP",
-    "100K PP", "VERTALYOT"
-]
+PP_PACKAGES = ["10K PP", "20K PP", "30K PP", "40K PP", "50K PP", "70K PP", "100K PP", "VERTALYOT"]
 
 PRIME_TEXT = """
 👑 PRIME va PRIME PLUS obunalarini skidka narxlarda harid qilishingiz mumkin.
@@ -97,6 +97,7 @@ PRIME_PACKAGES = [
 # =========================
 # YORDAMCHI FUNKSIYALAR
 # =========================
+
 async def send_main_menu(context, user_id):
     keyboard = [
         ["🎮 UC xizmati", "👑 PP xizmati"],
@@ -111,6 +112,7 @@ async def send_main_menu(context, user_id):
 # =========================
 # START
 # =========================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data[update.message.from_user.id] = {"step": "service"}
     await send_main_menu(context, update.message.from_user.id)
@@ -118,36 +120,35 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # OQIMLAR
 # =========================
+
 async def start_uc_flow(update, context):
     keyboard = [UC_PACKAGES[i:i+2] for i in range(0, len(UC_PACKAGES), 2)]
-    keyboard_with_back = keyboard + BACK_BUTTON
     await update.message.reply_text(
         UC_TEXT,
-        reply_markup=ReplyKeyboardMarkup(keyboard_with_back, resize_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(keyboard + BACK_BUTTON, resize_keyboard=True)
     )
     user_data[update.message.from_user.id]["step"] = "uc_package"
 
 async def start_pp_flow(update, context):
     keyboard = [PP_PACKAGES[i:i+2] for i in range(0, len(PP_PACKAGES), 2)]
-    keyboard_with_back = keyboard + BACK_BUTTON
     await update.message.reply_text(
         PP_TEXT,
-        reply_markup=ReplyKeyboardMarkup(keyboard_with_back, resize_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(keyboard + BACK_BUTTON, resize_keyboard=True)
     )
     user_data[update.message.from_user.id]["step"] = "pp_package"
 
 async def start_prime_flow(update, context):
     keyboard = [PRIME_PACKAGES[i:i+2] for i in range(0, len(PRIME_PACKAGES), 2)]
-    keyboard_with_back = keyboard + BACK_BUTTON
     await update.message.reply_text(
         PRIME_TEXT,
-        reply_markup=ReplyKeyboardMarkup(keyboard_with_back, resize_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(keyboard + BACK_BUTTON, resize_keyboard=True)
     )
     user_data[update.message.from_user.id]["step"] = "prime_package"
 
 # =========================
 # ASOSIY HANDLER
 # =========================
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.message.from_user.id
@@ -161,7 +162,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_main_menu(context, user_id)
         return
 
-    # SUPPORT rejim (user -> admin)
+    # ATZIV (yozma)
+    if user_id in awaiting_reviews:
+        username = f"@{update.message.from_user.username}" if update.message.from_user.username else update.message.from_user.full_name
+        order = user_data.get(user_id, {})
+        service = order.get("service", "Noma'lum")
+        package = order.get("package", "Noma'lum")
+
+        await context.bot.send_message(
+            chat_id=PROOF_CHANNEL_ID,
+            text=(
+                "📝 BUYURTMACHI OTZIVI\n\n"
+                f"👤 Mijoz: {username}\n"
+                f"🛒 Xizmat: {service}\n"
+                f"📦 Paket: {package}\n\n"
+                f"💬 Fikr:\n{text}"
+            )
+        )
+
+        awaiting_reviews.remove(user_id)
+        await update.message.reply_text("🙏 Rahmat, fikringiz qabul qilindi!")
+        await send_main_menu(context, user_id)
+        return
+
+    # SUPPORT rejim
     if user_id in support_sessions:
         await context.bot.send_message(
             chat_id=ADMIN_ID,
@@ -233,11 +257,48 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
 # =========================
-# CHEK QABUL QILISH
+# CHEK QABUL QILISH + ATZIV RASM
 # =========================
+
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
 
+    # ATZIV (rasm) — xizmat + paket + chek bilan
+    if user_id in awaiting_reviews:
+        username = f"@{update.message.from_user.username}" if update.message.from_user.username else update.message.from_user.full_name
+        order = user_data.get(user_id, {})
+        service = order.get("service", "Noma'lum")
+        package = order.get("package", "Noma'lum")
+        receipt_photo = last_receipts.get(user_id)
+
+        caption = (
+            "📝 BUYURTMACHI OTZIVI (RASM)\n\n"
+            f"👤 Mijoz: {username}\n"
+            f"🛒 Xizmat: {service}\n"
+            f"📦 Paket: {package}\n"
+        )
+
+        if receipt_photo:
+            await context.bot.send_media_group(
+                chat_id=PROOF_CHANNEL_ID,
+                media=[
+                    InputMediaPhoto(media=update.message.photo[-1].file_id, caption=caption),
+                    InputMediaPhoto(media=receipt_photo, caption="🧾 To‘lov cheki")
+                ]
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=PROOF_CHANNEL_ID,
+                photo=update.message.photo[-1].file_id,
+                caption=caption
+            )
+
+        awaiting_reviews.remove(user_id)
+        await update.message.reply_text("🙏 Rahmat, atzivingiz qabul qilindi!")
+        await send_main_menu(context, user_id)
+        return
+
+    # CHEK
     if user_id in user_data and user_data[user_id].get("step") == "payment":
         order = user_data[user_id]
 
@@ -257,10 +318,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ])
 
+        last_receipts[user_id] = update.message.photo[-1].file_id
+
         await context.bot.send_photo(
             chat_id=GROUP_ID,
             photo=update.message.photo[-1].file_id,
             caption=caption,
+            parse_mode="Markdown",
             reply_markup=keyboard
         )
 
@@ -270,6 +334,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # ADMIN TUGMALARI
 # =========================
+
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -283,20 +348,52 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_user_id = int(target_user_id)
 
     if action == "done":
+        order = user_data.get(target_user_id, {})
+        service = order.get("service", "Noma'lum")
+        package = order.get("package", "Noma'lum")
+        player_id = order.get("player_id", "Noma'lum")
+
+        user = await context.bot.get_chat(target_user_id)
+        username = f"@{user.username}" if user.username else user.full_name
+
+        receipt_photo = last_receipts.get(target_user_id)
+
+        # Userga xabar + atziv so‘rash
         await context.bot.send_message(
             chat_id=target_user_id,
-            text="✅ Buyurtmangiz bajarildi. Rahmat!"
+            text="✅ Buyurtmangiz bajarildi! Rahmat.\n\nIltimos, xizmatimiz haqida fikringizni (yozma yoki rasm) yuboring 🙏"
         )
-        # Bosh menyuga qaytar
-        await send_main_menu(context, target_user_id)
+
+        # Kanalga proof (chek bilan)
+        proof_caption = (
+            "🎉 BUYURTMA MUVAFFAQIYATLI BAJARILDI!\n\n"
+            f"🛒 Xizmat: {service}\n"
+            f"📦 Paket: {package}\n"
+            f"🆔 ID: `{player_id}`\n"
+            f"👤 Mijoz: {username}\n\n"
+            "✅ Ishonchli va tez yetkazib berildi"
+        )
+
+        if receipt_photo:
+            await context.bot.send_photo(
+                chat_id=PROOF_CHANNEL_ID,
+                photo=receipt_photo,
+                caption=proof_caption,
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=PROOF_CHANNEL_ID,
+                text=proof_caption,
+                parse_mode="Markdown"
+            )
+
+        awaiting_reviews.add(target_user_id)
 
         await query.edit_message_caption(
             caption=query.message.caption + "\n\n✔️ BAJARILDI",
             reply_markup=None
         )
-
-        if target_user_id in user_data:
-            del user_data[target_user_id]
 
     elif action == "fake":
         support_sessions[target_user_id] = ADMIN_ID
@@ -304,19 +401,19 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=target_user_id,
             text="❌ Chekingiz soxtaga o‘xshaydi.\nIltimos, shu yerga yozing – support tekshiradi."
         )
+
         await query.edit_message_caption(
             caption=query.message.caption + "\n\n❌ SOXTA - SUPPORT",
             reply_markup=None
         )
 
 # =========================
-# ADMIN REPLY → USER (REPLY ORQALI)
+# ADMIN REPLY → USER (SUPPORT)
 # =========================
+
 async def admin_support_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # faqat admin
     if update.message.from_user.id != ADMIN_ID:
         return
-    # faqat reply bo'lsa
     if not update.message.reply_to_message:
         return
 
@@ -330,13 +427,14 @@ async def admin_support_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
             chat_id=target_user_id,
             text=f"👨‍💼 Admin:\n\n{update.message.text}"
         )
-        await update.message.reply_text("✅ Xabar userga yuborildi.")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Xato: {e}")
+        await update.message.reply_text("✅ Userga yuborildi.")
+    except:
+        pass
 
 # =========================
 # SUPPORT YOPISH
 # =========================
+
 async def close_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         return
@@ -345,10 +443,7 @@ async def close_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = int(context.args[0])
         if user_id in support_sessions:
             del support_sessions[user_id]
-            await context.bot.send_message(
-                chat_id=user_id,
-                text="🔒 Support yopildi."
-            )
+            await context.bot.send_message(chat_id=user_id, text="🔒 Support yopildi.")
             await send_main_menu(context, user_id)
             await update.message.reply_text(f"🔒 Yopildi: {user_id}")
     except:
@@ -357,6 +452,7 @@ async def close_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # MAIN
 # =========================
+
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -364,12 +460,8 @@ def main():
     app.add_handler(CommandHandler("close", close_support))
 
     app.add_handler(CallbackQueryHandler(admin_callback))
-
-    # ADMIN reply birinchi
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_support_reply))
-    # foto (chek)
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    # oddiy matn oxirida
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     app.run_polling()
