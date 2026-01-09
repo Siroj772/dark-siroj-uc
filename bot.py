@@ -2,8 +2,8 @@ from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKe
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 TOKEN = "8225625567:AAH7MDUwla9HjNfVbCvLPLT4yCvVqPW3np4"
-ADMIN_ID = 1787954213 # o'zingning Telegram ID
-GROUP_ID = -1003618907297  # buyurtmalar tushadigan group ID
+ADMIN_ID = 1787954213           # o'zingning Telegram ID
+GROUP_ID = -1003618907297    # buyurtmalar tushadigan group ID
 KARTA = "8600 1234 5678 9012"
 ISM = "Sirojiddin S"
 
@@ -11,9 +11,13 @@ user_data = {}
 support_sessions = {}
 
 # =========================
+# ORQAGA TUGMASI
+# =========================
+BACK_BUTTON = [["⬅️ Orqaga"]]
+
+# =========================
 # MATNLAR
 # =========================
-
 UC_TEXT = """
 🔥 PUBG UC TARIFLAR 🔥
 
@@ -93,7 +97,6 @@ PRIME_PACKAGES = [
 # =========================
 # YORDAMCHI FUNKSIYALAR
 # =========================
-
 async def send_main_menu(context, user_id):
     keyboard = [
         ["🎮 UC xizmati", "👑 PP xizmati"],
@@ -108,7 +111,6 @@ async def send_main_menu(context, user_id):
 # =========================
 # START
 # =========================
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_data[update.message.from_user.id] = {"step": "service"}
     await send_main_menu(context, update.message.from_user.id)
@@ -116,26 +118,36 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # OQIMLAR
 # =========================
-
 async def start_uc_flow(update, context):
     keyboard = [UC_PACKAGES[i:i+2] for i in range(0, len(UC_PACKAGES), 2)]
-    await update.message.reply_text(UC_TEXT, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+    keyboard_with_back = keyboard + BACK_BUTTON
+    await update.message.reply_text(
+        UC_TEXT,
+        reply_markup=ReplyKeyboardMarkup(keyboard_with_back, resize_keyboard=True)
+    )
     user_data[update.message.from_user.id]["step"] = "uc_package"
 
 async def start_pp_flow(update, context):
     keyboard = [PP_PACKAGES[i:i+2] for i in range(0, len(PP_PACKAGES), 2)]
-    await update.message.reply_text(PP_TEXT, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+    keyboard_with_back = keyboard + BACK_BUTTON
+    await update.message.reply_text(
+        PP_TEXT,
+        reply_markup=ReplyKeyboardMarkup(keyboard_with_back, resize_keyboard=True)
+    )
     user_data[update.message.from_user.id]["step"] = "pp_package"
 
 async def start_prime_flow(update, context):
     keyboard = [PRIME_PACKAGES[i:i+2] for i in range(0, len(PRIME_PACKAGES), 2)]
-    await update.message.reply_text(PRIME_TEXT, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+    keyboard_with_back = keyboard + BACK_BUTTON
+    await update.message.reply_text(
+        PRIME_TEXT,
+        reply_markup=ReplyKeyboardMarkup(keyboard_with_back, resize_keyboard=True)
+    )
     user_data[update.message.from_user.id]["step"] = "prime_package"
 
 # =========================
 # ASOSIY HANDLER
 # =========================
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.message.from_user.id
@@ -143,11 +155,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id not in user_data:
         user_data[user_id] = {}
 
-    # SUPPORT rejim
+    # ⬅️ ORQAGA
+    if text == "⬅️ Orqaga":
+        user_data[user_id] = {"step": "service"}
+        await send_main_menu(context, user_id)
+        return
+
+    # SUPPORT rejim (user -> admin)
     if user_id in support_sessions:
         await context.bot.send_message(
             chat_id=ADMIN_ID,
-            text=f"📩 SUPPORT\nUser ID: {user_id}\n\n{text}"
+            text=f"📩 SUPPORT XABAR\nUser ID: {user_id}\n\n{text}"
         )
         await update.message.reply_text("📨 Xabaringiz adminga yuborildi.")
         return
@@ -217,7 +235,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # CHEK QABUL QILISH
 # =========================
-
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
 
@@ -253,7 +270,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # ADMIN TUGMALARI
 # =========================
-
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -271,8 +287,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=target_user_id,
             text="✅ Buyurtmangiz bajarildi. Rahmat!"
         )
-
-        # Bosh menyuga qaytaramiz
+        # Bosh menyuga qaytar
         await send_main_menu(context, target_user_id)
 
         await query.edit_message_caption(
@@ -289,34 +304,39 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=target_user_id,
             text="❌ Chekingiz soxtaga o‘xshaydi.\nIltimos, shu yerga yozing – support tekshiradi."
         )
-
         await query.edit_message_caption(
             caption=query.message.caption + "\n\n❌ SOXTA - SUPPORT",
             reply_markup=None
         )
 
 # =========================
-# ADMIN REPLY → USER
+# ADMIN REPLY → USER (REPLY ORQALI)
 # =========================
-
 async def admin_support_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.reply_to_message:
-        original = update.message.reply_to_message.text
-        if "User ID:" in original:
-            try:
-                target_user_id = int(original.split("User ID:")[1].split("\n")[0].strip())
-                await context.bot.send_message(
-                    chat_id=target_user_id,
-                    text=f"👨‍💼 Admin:\n\n{update.message.text}"
-                )
-                await update.message.reply_text("✅ Userga yuborildi.")
-            except:
-                pass
+    # faqat admin
+    if update.message.from_user.id != ADMIN_ID:
+        return
+    # faqat reply bo'lsa
+    if not update.message.reply_to_message:
+        return
+
+    original_text = update.message.reply_to_message.text
+    if "User ID:" not in original_text:
+        return
+
+    try:
+        target_user_id = int(original_text.split("User ID:")[1].split("\n")[0].strip())
+        await context.bot.send_message(
+            chat_id=target_user_id,
+            text=f"👨‍💼 Admin:\n\n{update.message.text}"
+        )
+        await update.message.reply_text("✅ Xabar userga yuborildi.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xato: {e}")
 
 # =========================
 # SUPPORT YOPISH
 # =========================
-
 async def close_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         return
@@ -325,14 +345,11 @@ async def close_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = int(context.args[0])
         if user_id in support_sessions:
             del support_sessions[user_id]
-
             await context.bot.send_message(
                 chat_id=user_id,
                 text="🔒 Support yopildi."
             )
-
             await send_main_menu(context, user_id)
-
             await update.message.reply_text(f"🔒 Yopildi: {user_id}")
     except:
         await update.message.reply_text("❌ Format: /close USER_ID")
@@ -340,15 +357,19 @@ async def close_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # MAIN
 # =========================
-
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("close", close_support))
+
     app.add_handler(CallbackQueryHandler(admin_callback))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+
+    # ADMIN reply birinchi
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_support_reply))
+    # foto (chek)
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    # oddiy matn oxirida
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     app.run_polling()
