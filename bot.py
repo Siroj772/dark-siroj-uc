@@ -7,19 +7,29 @@ from telegram.ext import (
     CallbackQueryHandler, filters, ContextTypes
 )
 
+# =========================
+# SOZLAMALAR
+# =========================
+
 TOKEN = "8225625567:AAH7MDUwla9HjNfVbCvLPLT4yCvVqPW3np4"
 
 ADMIN_ID = 1787954213
 GROUP_ID = -1003618907297
 PROOF_CHANNEL_ID = -1002547753187
 
-KARTA = "8600 1234 5678 9012"
+CONTACT_NUMBER = "+998 91 772 03 21"  # telefon raqam
+card_number = "8600 1234 5678 9012"   # admin /setcard bilan o'zgartiradi
 ISM = "Sirojiddin S"
+
+# =========================
+# GLOBAL O'ZGARUVCHILAR
+# =========================
 
 user_data = {}
 support_sessions = {}
 last_receipts = {}
 awaiting_reviews = set()
+all_users = set()
 
 BACK_BUTTON = [["⬅️ Orqaga"]]
 
@@ -33,16 +43,16 @@ UC_TEXT = """
 60 UC  = 11 500 so'm
 120 UC = 21 000 so'm
 180 UC = 34 500 so'm
-325 UC = 53 000 so'm
-660 UC = 108 000 so'm
-840 UC = 141 000 so'm
-985 UC = 166 000 so'm
-1800 UC = 265 000 so'm
-1920 UC = 285 000 so'm
-3120 UC = 480 000 so'm
-3850 UC = 530 000 so'm
+325 UC = 54 500 so'm
+660 UC = 108 500 so'm
+840 UC = 141 500 so'm
+985 UC = 166 500 so'm
+1800 UC = 265 500 so'm
+1920 UC = 285 500 so'm
+3120 UC = 480 500 so'm
+3850 UC = 530 500 so'm
 5650 UC = 815 500 so'm
-8100 UC = 1 060 000 so'm
+8100 UC = 1 064 500 so'm
 
 👇 Kerakli UC paketni tanlang:
 """
@@ -103,9 +113,17 @@ async def send_main_menu(context, user_id):
         ["🎮 UC xizmati", "👑 PP xizmati"],
         ["⭐ PRIME / PRIME PLUS", "💼 PP sotib olamiz"]
     ]
+
+    text = (
+        "❗ Ishonmaganlar uchun 👇\n"
+        f"📞 Telefon: {CONTACT_NUMBER}\n\n"
+        "🏠 Bosh menyu:\n"
+        "Kerakli xizmatni tanlang 👇"
+    )
+
     await context.bot.send_message(
         chat_id=user_id,
-        text="🏠 Bosh menyu:",
+        text=text,
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
 
@@ -114,11 +132,13 @@ async def send_main_menu(context, user_id):
 # =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data[update.message.from_user.id] = {"step": "service"}
-    await send_main_menu(context, update.message.from_user.id)
+    user_id = update.message.from_user.id
+    all_users.add(user_id)
+    user_data[user_id] = {"step": "service"}
+    await send_main_menu(context, user_id)
 
 # =========================
-# OQIMLAR
+# XIZMAT OQIMLARI
 # =========================
 
 async def start_uc_flow(update, context):
@@ -150,8 +170,9 @@ async def start_prime_flow(update, context):
 # =========================
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
     user_id = update.message.from_user.id
+    all_users.add(user_id)
+    text = update.message.text
 
     if user_id not in user_data:
         user_data[user_id] = {}
@@ -251,7 +272,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Xizmat: {user_data[user_id].get('service')}\n"
             f"Paket: {user_data[user_id].get('package')}\n"
             f"ID: {text}\n\n"
-            f"💳 Karta: {KARTA}\nIsm: {ISM}\n\n"
+            f"💳 Karta: {card_number}\nIsm: {ISM}\n\n"
             "To‘lovdan keyin chek (screenshot) yuboring."
         )
         return
@@ -262,6 +283,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
+    all_users.add(user_id)
 
     # ATZIV (rasm) — xizmat + paket + chek bilan
     if user_id in awaiting_reviews:
@@ -450,6 +472,35 @@ async def close_support(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Format: /close USER_ID")
 
 # =========================
+# KARTA O'ZGARTIRISH (ADMIN)
+# =========================
+
+async def set_card(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global card_number
+
+    if update.message.from_user.id != ADMIN_ID:
+        return
+
+    if not context.args:
+        await update.message.reply_text("❌ Format: /setcard 8600 1234 5678 9012")
+        return
+
+    card_number = " ".join(context.args)
+    await update.message.reply_text(f"✅ Karta raqami yangilandi:\n💳 {card_number}")
+
+# =========================
+# KUNLIK REMINDER
+# =========================
+
+async def daily_reminder(context: ContextTypes.DEFAULT_TYPE):
+    text = "👋 Salom!\nBotdan foydalanish uchun /start bosing 🚀"
+    for user_id in all_users:
+        try:
+            await context.bot.send_message(chat_id=user_id, text=text)
+        except:
+            pass
+
+# =========================
 # MAIN
 # =========================
 
@@ -458,15 +509,19 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("close", close_support))
+    app.add_handler(CommandHandler("setcard", set_card))
 
     app.add_handler(CallbackQueryHandler(admin_callback))
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_support_reply))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+    # Kunlik reminder ishga tushadi
+    job_queue = app.job_queue
+    job_queue.run_repeating(daily_reminder, interval=86400, first=10)
+
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-
 
